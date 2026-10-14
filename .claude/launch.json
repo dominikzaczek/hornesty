@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "/Users/nisku/.nvm/versions/node/v22.21.1/bin/node",
+      "runtimeArgs": [
+        "node_modules/next/dist/bin/next",
+        "dev"
+      ],
+      "port": 3000
+    }
+  ]
+}

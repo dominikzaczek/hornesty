@@ -1,69 +1,116 @@
-import Image from "next/image";
+import { Suspense } from "react";
+import { isMember } from "@/lib/auth";
+import { listTruths, MAX_TRUTH_LENGTH, type HornyTruth } from "@/lib/db";
+import { leaveClub } from "./actions";
+import { PasswordGate } from "./password-gate";
+import { TruthForm } from "./truth-form";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pb-24 pt-14 sm:pt-20">
+      <header className="mb-12 text-center">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.35em] text-hot-soft">
+          Members only
+        </p>
+        <h1 className="font-display text-5xl italic leading-tight text-foreground sm:text-6xl">
+          The <span className="text-hot">Hornesty</span> Club
+        </h1>
+        <p className="mt-4 text-muted">
+          Anonymous. Unfiltered. Brutally, deliciously honest.
+        </p>
+      </header>
+
+      <Suspense fallback={<Loading />}>
+        <Club />
+      </Suspense>
+    </main>
   );
+}
+
+async function Club() {
+  if (!(await isMember())) {
+    return <PasswordGate />;
+  }
+
+  const truths = await listTruths();
+
+  return (
+    <>
+      <TruthForm maxLength={MAX_TRUTH_LENGTH} />
+
+      <section className="mt-14">
+        <div className="mb-6 flex items-baseline justify-between border-b border-line pb-3">
+          <h2 className="font-display text-2xl italic">The confessions</h2>
+          <span className="text-sm text-muted">
+            {truths.length} {truths.length === 1 ? "truth" : "truths"}
+          </span>
+        </div>
+
+        {truths.length === 0 ? (
+          <p className="py-12 text-center text-muted">
+            Nobody&apos;s confessed yet. Be the first to get it off your chest.
+          </p>
+        ) : (
+          <ol className="flex flex-col gap-5">
+            {truths.map((truth) => (
+              <TruthCard key={truth.id} truth={truth} />
+            ))}
+          </ol>
+        )}
+      </section>
+
+      <form action={leaveClub} className="mt-16 text-center">
+        <button className="text-sm text-muted underline-offset-4 hover:text-hot-soft hover:underline">
+          Leave the club
+        </button>
+      </form>
+    </>
+  );
+}
+
+function TruthCard({ truth }: { truth: HornyTruth }) {
+  return (
+    <li className="rounded-2xl border border-line bg-surface/80 p-6 shadow-[0_10px_40px_-20px_rgba(255,46,126,0.45)]">
+      <div className="mb-3 flex items-baseline justify-between gap-4">
+        <h3 className="font-display text-lg italic text-hot">
+          Horny Truth #{truth.id}
+        </h3>
+        <time
+          dateTime={truth.created_at.toISOString()}
+          className="shrink-0 text-xs text-muted"
+        >
+          {timeAgo(truth.created_at)}
+        </time>
+      </div>
+      <p className="whitespace-pre-wrap break-words leading-relaxed">
+        {truth.body}
+      </p>
+    </li>
+  );
+}
+
+function Loading() {
+  return (
+    <p className="animate-pulse text-center text-muted">Slipping in…</p>
+  );
+}
+
+const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const units: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 60 * 60 * 24 * 365],
+  ["month", 60 * 60 * 24 * 30],
+  ["week", 60 * 60 * 24 * 7],
+  ["day", 60 * 60 * 24],
+  ["hour", 60 * 60],
+  ["minute", 60],
+];
+
+function timeAgo(date: Date) {
+  const seconds = (date.getTime() - Date.now()) / 1000;
+  for (const [unit, size] of units) {
+    if (Math.abs(seconds) >= size) {
+      return relative.format(Math.round(seconds / size), unit);
+    }
+  }
+  return "just now";
 }
