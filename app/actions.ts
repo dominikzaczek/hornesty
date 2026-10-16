@@ -2,12 +2,13 @@
 
 import { refresh } from "next/cache";
 import {
+  getOrCreateVoterId,
   grantMembership,
   isCorrectPassword,
   isMember,
   revokeMembership,
 } from "@/lib/auth";
-import { addTruth, MAX_TRUTH_LENGTH } from "@/lib/db";
+import { addTruth, MAX_TRUTH_LENGTH, toggleVote } from "@/lib/db";
 
 export async function enterClub(_prev: string | null, formData: FormData) {
   const password = String(formData.get("password") ?? "");
@@ -35,4 +36,10 @@ export async function confess(_prev: string | null, formData: FormData) {
   await addTruth(body.slice(0, MAX_TRUTH_LENGTH));
   refresh();
   return null;
+}
+
+export async function toggleHeart(truthId: number) {
+  if (!(await isMember()) || !Number.isInteger(truthId)) return;
+  await toggleVote(truthId, await getOrCreateVoterId());
+  refresh();
 }

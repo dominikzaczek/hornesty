@@ -1,7 +1,8 @@
 import { Suspense } from "react";
-import { isMember } from "@/lib/auth";
+import { getVoterId, isMember } from "@/lib/auth";
 import { listTruths, MAX_TRUTH_LENGTH, type HornyTruth } from "@/lib/db";
 import { leaveClub } from "./actions";
+import { HeartButton } from "./heart-button";
 import { PasswordGate } from "./password-gate";
 import { TruthForm } from "./truth-form";
 
@@ -32,11 +33,22 @@ async function Club() {
     return <PasswordGate />;
   }
 
-  const truths = await listTruths();
+  const truths = await listTruths(await getVoterId());
+  const top = topTruth(truths);
+  const rest = truths.filter((truth) => truth !== top);
 
   return (
     <>
       <TruthForm maxLength={MAX_TRUTH_LENGTH} />
+
+      {top && (
+        <section className="mt-14">
+          <h2 className="mb-4 text-center text-xs font-semibold uppercase tracking-[0.35em] text-hot-soft">
+            Top Hornesty
+          </h2>
+          <TopTruthCard truth={top} />
+        </section>
+      )}
 
       <section className="mt-14">
         <div className="mb-6 flex items-baseline justify-between border-b border-line pb-3">
@@ -52,7 +64,7 @@ async function Club() {
           </p>
         ) : (
           <ol className="flex flex-col gap-5">
-            {truths.map((truth) => (
+            {rest.map((truth) => (
               <TruthCard key={truth.id} truth={truth} />
             ))}
           </ol>
@@ -85,8 +97,57 @@ function TruthCard({ truth }: { truth: HornyTruth }) {
       <p className="whitespace-pre-wrap break-words leading-relaxed">
         {truth.body}
       </p>
+      <div className="-mb-2 -ml-3 mt-3 flex">
+        <HeartButton truthId={truth.id} votes={truth.votes} voted={truth.voted} />
+      </div>
     </li>
   );
+}
+
+function TopTruthCard({ truth }: { truth: HornyTruth }) {
+  return (
+    <article className="rounded-3xl bg-gradient-to-br from-hot via-crimson to-hot-soft p-[2px] shadow-[0_20px_60px_-20px_rgba(255,46,126,0.7)]">
+      <div className="rounded-[calc(1.5rem-2px)] bg-surface-strong p-7">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h3 className="font-display text-2xl italic text-hot">
+            Horny Truth #{truth.id}
+          </h3>
+          <time
+            dateTime={truth.created_at.toISOString()}
+            className="shrink-0 text-xs text-muted"
+          >
+            {timeAgo(truth.created_at)}
+          </time>
+        </div>
+        <p className="whitespace-pre-wrap break-words font-display text-xl leading-relaxed">
+          {truth.body}
+        </p>
+        <div className="-mb-2 -ml-3 mt-4 flex">
+          <HeartButton
+            truthId={truth.id}
+            votes={truth.votes}
+            voted={truth.voted}
+          />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+// Most hearts wins; on a tie, whoever got there first keeps the crown.
+function topTruth(truths: HornyTruth[]) {
+  let top: HornyTruth | undefined;
+  for (const truth of truths) {
+    if (truth.votes === 0) continue;
+    if (
+      !top ||
+      truth.votes > top.votes ||
+      (truth.votes === top.votes && truth.id < top.id)
+    ) {
+      top = truth;
+    }
+  }
+  return top;
 }
 
 function Loading() {
