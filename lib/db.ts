@@ -33,6 +33,8 @@ function ensureTables() {
         primary key (truth_id, voter_id)
       )
     `;
+    // Poster's IP, kept for moderation only. Never selected for the page.
+    await sql`alter table horny_truths add column if not exists ip text`;
   })().catch((error) => {
     tablesReady = undefined;
     throw error;
@@ -57,9 +59,9 @@ export async function listTruths(voterId: string | null) {
   `;
 }
 
-export async function addTruth(body: string) {
+export async function addTruth(body: string, ip: string | null) {
   await ensureTables();
-  await sql`insert into horny_truths (body) values (${body})`;
+  await sql`insert into horny_truths (body, ip) values (${body}, ${ip})`;
 }
 
 // Hearts toggle: a second click from the same voter takes the vote back.
